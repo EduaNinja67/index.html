@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RayadosIA</title>
+<style>
+:root{--bg:#f4f6fb;--card:#fff;--ink:#0d1b3d;--muted:#5d6785;--brand:#0b2a6f;--brand2:#1c4fc4;--bubble-ai:#e6ebf7;--line:#d5dbeb;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0a1226;--card:#111c3a;--ink:#eaf0ff;--muted:#9aa6c9;--brand:#2f63d8;--brand2:#5b8cff;--bubble-ai:#1a2850;--line:#26356a}}
+:root[data-theme="dark"]{--bg:#0a1226;--card:#111c3a;--ink:#eaf0ff;--muted:#9aa6c9;--brand:#2f63d8;--brand2:#5b8cff;--bubble-ai:#1a2850;--line:#26356a}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column}
+header{display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--brand);color:#fff;border-bottom:4px solid #fff}
+.logo{width:40px;height:40px;border-radius:50%;background:#fff;color:var(--brand);display:grid;place-items:center;font-weight:800;font-size:20px}
+header h1{font-size:20px;margin:0}
+header p{margin:0;font-size:12px;opacity:.85}
+header .sp{flex:1}
+.brain{border:1px solid #fff;background:transparent;color:#fff;border-radius:999px;padding:6px 12px;cursor:pointer;font-size:13px}
+#chat{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:6px;max-width:760px;width:100%;margin:0 auto;box-sizing:border-box}
+.msg{max-width:85%;padding:10px 14px;border-radius:16px;line-height:1.45;white-space:pre-wrap;word-wrap:break-word;font-size:15px;margin-top:4px}
+.user{align-self:flex-end;background:var(--brand2);color:#fff;border-bottom-right-radius:4px}
+.ai{align-self:flex-start;background:var(--bubble-ai);border-bottom-left-radius:4px}
+.wrong{align-self:flex-start;background:none;border:0;color:var(--muted);font-size:12px;cursor:pointer;padding:0 6px;text-decoration:underline}
+.bar{display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--line);background:var(--card);max-width:760px;width:100%;margin:0 auto;box-sizing:border-box}
+input{flex:1;padding:12px 14px;border-radius:999px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:15px;outline:none}
+button.send{border:0;background:var(--brand2);color:#fff;padding:0 20px;border-radius:999px;font-weight:700;cursor:pointer}
+#panel{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center;z-index:20}
+#panel[hidden]{display:none}
+.sheet{background:var(--card);width:100%;max-width:760px;max-height:75%;overflow-y:auto;border-radius:18px 18px 0 0;padding:18px;box-sizing:border-box}
+.sheet h2{margin:0 0 4px;font-size:18px}
+.sheet p{color:var(--muted);font-size:13px;margin:0 0 12px}
+.item{border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:8px;font-size:14px}
+.item b{display:block}
+.item button{margin-top:6px;border:0;background:none;color:#d33;cursor:pointer;padding:0;font-size:13px}
+.close{margin-top:8px;width:100%;padding:10px;border-radius:999px;border:0;background:var(--brand2);color:#fff;font-weight:700;cursor:pointer}
+</style>
+</head>
+<body>
+<header><div class="logo">R</div><div><h1>RayadosIA</h1><p id="count"></p></div><div class="sp"></div><button class="brain" id="bb">🧠 Cerebro</button></header>
+<div id="chat"></div>
+<div class="bar"><input id="q" placeholder="Escribe aquí…" autocomplete="off"><button class="send" id="go">Enviar</button></div>
+<div id="panel" hidden><div class="sheet"><h2>🧠 Lo que he aprendido</h2><p>Aquí está todo lo que me has enseñado. Puedes borrar lo que no quieras.</p><div id="list"></div><button class="close" id="cl">Cerrar</button></div></div>
+<script>
+const $=id=>document.getElementById(id);
+const chat=$('chat'),q=$('q');
+const KEY='rayadosia_brain_v1';
+const SEED=[
+{q:['hola','buenas','que onda','hey','buenos dias','buenas tardes'],a:['¡Hola! Soy RayadosIA 👋 ¿Qué quieres saber?','¡Qué onda! Soy RayadosIA. Pregúntame algo o enséñame algo nuevo.']},
+{q:['como te llamas','cual es tu nombre','quien eres','como te dices'],a:['Me llamo RayadosIA. Mi cerebro es propio y aprende de lo que tú me enseñas.']},
+{q:['como estas','que tal estas','como te va'],a:['¡Muy bien! Aprendiendo cosas nuevas cada día 🧠 ¿Y tú?']},
+{q:['eres claude','eres chatgpt','eres una ia','eres inteligente'],a:['Soy RayadosIA. No dependo de nadie para responder: sé lo que tú me enseñas, y entre más me enseñes, más inteligente soy.']},
+{q:['que puedes hacer','para que sirves','que sabes hacer','ayuda'],a:['Puedo conversar contigo, hacer cuentas (prueba con 12x7) y, lo mejor, aprender: si no sé algo, dime qué responder y lo recordaré para la próxima.']},
+{q:['quien te creo','quien te hizo','quien es tu dueno'],a:['Me creó mi dueño, que me puso el nombre RayadosIA. Yo solo sigo aprendiendo.']},
+{q:['que es rayados','quien es rayados','cuentame de los rayados','rayados de monterrey'],a:['Los Rayados son el Club de Fútbol Monterrey, el equipo de la ciudad de Monterrey, fundado en 1945. Juegan en el Estadio BBVA.']},
+{q:['cuenta un chiste','dime un chiste','chiste'],a:['¿Qué le dice un portero a otro? ¡Qué atajado estás! 😄','¿Por qué el balón no se pelea? Porque siempre lo patean y aun así regresa 😅']},
+{q:['gracias','muchas gracias','te lo agradezco'],a:['¡De nada! 😎']},
+{q:['adios','nos vemos','bye','hasta luego'],a:['¡Nos vemos! Vuelve pronto a enseñarme más 👋']},
+{q:['bien','muy bien','todo bien','excelente','genial','chido','al cien'],a:['¡Qué bueno! 😄 ¿Qué quieres hacer hoy?','¡Me alegra! ¿Quieres preguntarme algo o enseñarme algo nuevo?']},
+{q:['mal','triste','estoy mal','no muy bien','cansado','aburrido'],a:['Ánimo, ya mejorará 💪 Aquí estoy si quieres platicar.','Uy, qué mal. ¿Quieres que te cuente un chiste para cambiar el ánimo?']},
+{q:['jaja','jajaja','jeje','lol','xd'],a:['😄😄','Jajaja 😂']},
+{q:['ok','vale','sale','va','okey','entiendo'],a:['Perfecto 👍','¡Va! 😎']},
+{q:['pro','eres pro','que pro','eres el mejor','eres genial'],a:['¡Gracias! Tú sí eres un pro por crearme 😎']}
+];
+let learned=[];
+try{learned=JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){learned=[]}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(learned))}catch(e){}}
+const STOP=new Set(['de','la','el','los','las','un','una','y','o','en','por','para','con','del','al','se','lo','a','me','te','mi','tu']);
+function norm(s){return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim()}
+function toks(s){return norm(s).split(' ').filter(w=>w&&!STOP.has(w)).map(w=>w.length>3&&w.endsWith('s')?w.slice(0,-1):w)}
+function grams(s){s=' '+norm(s)+' ';const g=new Set();for(let i=0;i<s.length-2;i++)g.add(s.slice(i,i+3));return g}
+function dice(a,b){if(!a.size||!b.size)return 0;let n=0;a.forEach(x=>{if(b.has(x))n++});return 2*n/(a.size+b.size)}
+function score(inp,qq,bonus){
+  const s=dice(new Set(toks(inp)),new Set(toks(qq)))*0.6+dice(grams(inp),grams(qq))*0.4;
+  return s+bonus;
+}
+function best(inp){
+  let top=null,ts=0;
+  const all=SEED.map(e=>({e,b:0})).concat(learned.map(e=>({e,b:0.08})));
+  for(const {e,b} of all)for(const qq of e.q){const s=score(inp,qq,b);if(s>ts){ts=s;top=e}}
+  return {entry:top,score:ts};
+}
+function math(s){
+  let t=s.toLowerCase().replace(/cuanto es|cuanto son|resuelve|calcula|=|\?/g,'').replace(/[x×]/g,'*').replace(/÷/g,'/').replace(/,/g,'.').trim();
+  if(!/\d/.test(t)||!/^[0-9+\-*\/().\s]+$/.test(t)||!/[+\-*\/]/.test(t))return null;
+  try{const r=Function('"use strict";return ('+t+')')();if(typeof r==='number'&&isFinite(r))return String(Math.round(r*1e6)/1e6)}catch(e){}
+  return null;
+}
+function bubble(cls,text){const d=document.createElement('div');d.className='msg '+cls;d.textContent=text;chat.appendChild(d);chat.scrollTop=chat.scrollHeight;return d}
+function wrongBtn(question){const b=document.createElement('button');b.className='wrong';b.textContent='No es eso';b.onclick=()=>{b.remove();pending=question;bubble('ai','Ups, me equivoqué. Cuando me digan «'+question+'», ¿qué debería responder yo? Escribe mi respuesta (o cancelar).')};chat.appendChild(b);chat.scrollTop=chat.scrollHeight}
+function count(){$('count').textContent='Sé '+(SEED.length+learned.length)+' cosas · '+learned.length+' aprendidas de ti'}
+let pending=null;
+function ai(text,after){setTimeout(()=>{bubble('ai',text);if(after)after()},350)}
+function ask(){
+  const text=q.value.trim();if(!text)return;q.value='';
+  bubble('user',text);
+  if(pending!==null){
+    const question=pending;pending=null;
+    if(/^(cancelar|olvidalo|no)$/.test(norm(text))){ai('Ok, no aprendí nada de eso.');return}
+    learned.push({q:[question],a:[text]});save();count();
+    ai('¡Listo! 🧠 Ahora cuando me digas «'+question+'» te responderé «'+text+'». Pruébalo escribiéndolo otra vez.');return;
+  }
+  const m=math(text);
+  if(m!==null){ai('Eso da '+m+'.');return}
+  const {entry,score:s}=best(text);
+  if(entry&&s>=0.5){
+    const a=entry.a[Math.floor(Math.random()*entry.a.length)];
+    ai(a,()=>wrongBtn(text));
+  }else{
+    pending=text;
+    ai('No sé qué responder a «'+text+'» 🤔\nSi alguien me dice eso, ¿qué debería contestar yo? Escribe mi respuesta y la aprendo (por ejemplo: ¡Qué bueno! ¿Y qué más?). O escribe cancelar.');
+  }
+}
+$('go').onclick=ask;
+q.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();ask()}});
+function renderList(){
+  const l=$('list');l.textContent='';
+  if(!learned.length){l.textContent='Todavía no me has enseñado nada. Hazme una pregunta que no sepa y respóndeme tú.';return}
+  learned.forEach((e,i)=>{const d=document.createElement('div');d.className='item';
+    const b=document.createElement('b');b.textContent=e.q[0];
+    const p=document.createElement('span');p.textContent=e.a[0];
+    const x=document.createElement('button');x.textContent='Borrar';
+    x.onclick=()=>{learned.splice(i,1);save();count();renderList()};
+    d.append(b,p,document.createElement('br'),x);l.appendChild(d)});
+}
+$('bb').onclick=()=>{renderList();$('panel').hidden=false};
+$('cl').onclick=()=>{$('panel').hidden=true};
+count();
+bubble('ai','¡Hola! Soy RayadosIA 👋 Mi cerebro es propio: si no sé algo, tú me lo enseñas y lo recuerdo. Prueba preguntándome cualquier cosa.');
+</script>
+</body>
+</html>
